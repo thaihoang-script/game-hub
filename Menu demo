@@ -1,0 +1,258 @@
+
+-- NEON HUB - Roblox Studio Test Menu
+-- Dat LocalScript trong StarterPlayerScripts
+
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+local old = playerGui:FindFirstChild("NeonHub")
+if old then old:Destroy() end
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "NeonHub"
+gui.ResetOnSpawn = false
+gui.Parent = playerGui
+
+local window = Instance.new("Frame")
+window.Size = UDim2.fromOffset(540, 390)
+window.Position = UDim2.new(0.5, -270, 0.5, -195)
+window.BackgroundColor3 = Color3.fromRGB(10, 15, 30)
+window.BorderSizePixel = 0
+window.Active = true
+window.Parent = gui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 12)
+corner.Parent = window
+
+local stroke = Instance.new("UIStroke")
+stroke.Color = Color3.fromRGB(115, 65, 255)
+stroke.Thickness = 1.5
+stroke.Parent = window
+
+local header = Instance.new("TextLabel")
+header.Size = UDim2.new(1, -50, 0, 48)
+header.Position = UDim2.fromOffset(16, 0)
+header.BackgroundTransparency = 1
+header.Text = "NEON HUB  |  TEST MENU"
+header.TextColor3 = Color3.fromRGB(180, 150, 255)
+header.TextSize = 21
+header.Font = Enum.Font.GothamBold
+header.TextXAlignment = Enum.TextXAlignment.Left
+header.Parent = window
+
+local close = Instance.new("TextButton")
+close.Size = UDim2.fromOffset(36, 32)
+close.Position = UDim2.new(1, -44, 0, 8)
+close.Text = "X"
+close.TextSize = 16
+close.Font = Enum.Font.GothamBold
+close.TextColor3 = Color3.new(1, 1, 1)
+close.BackgroundColor3 = Color3.fromRGB(65, 40, 100)
+close.Parent = window
+Instance.new("UICorner", close).CornerRadius = UDim.new(0, 8)
+close.MouseButton1Click:Connect(function()
+    gui.Enabled = false
+end)
+
+-- Keo tha menu
+local dragging, dragStart, startPos
+header.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = window.Position
+    end
+end)
+
+UIS.InputChanged:Connect(function(input)
+    if dragging and (
+        input.UserInputType == Enum.UserInputType.MouseMovement
+        or input.UserInputType == Enum.UserInputType.Touch
+    ) then
+        local delta = input.Position - dragStart
+        window.Position = UDim2.new(
+            startPos.X.Scale, startPos.X.Offset + delta.X,
+            startPos.Y.Scale, startPos.Y.Offset + delta.Y
+        )
+    end
+end)
+
+UIS.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+    end
+end)
+
+local body = Instance.new("ScrollingFrame")
+body.Position = UDim2.fromOffset(14, 56)
+body.Size = UDim2.new(1, -28, 1, -70)
+body.BackgroundTransparency = 1
+body.BorderSizePixel = 0
+body.ScrollBarThickness = 4
+body.CanvasSize = UDim2.new(0, 0, 0, 0)
+body.AutomaticCanvasSize = Enum.AutomaticSize.Y
+body.Parent = window
+
+local layout = Instance.new("UIListLayout")
+layout.Padding = UDim.new(0, 8)
+layout.SortOrder = Enum.SortOrder.LayoutOrder
+layout.Parent = body
+
+local function makeButton(text, callback)
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(1, -8, 0, 38)
+    button.BackgroundColor3 = Color3.fromRGB(25, 32, 55)
+    button.TextColor3 = Color3.fromRGB(235, 240, 255)
+    button.TextSize = 14
+    button.Font = Enum.Font.Gotham
+    button.Text = text
+    button.Parent = body
+    Instance.new("UICorner", button).CornerRadius = UDim.new(0, 7)
+    button.MouseButton1Click:Connect(callback)
+    return button
+end
+
+local function makeLabel(text)
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, -8, 0, 28)
+    label.BackgroundTransparency = 1
+    label.TextColor3 = Color3.fromRGB(165, 175, 205)
+    label.TextSize = 14
+    label.Font = Enum.Font.GothamBold
+    label.Text = text
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = body
+    return label
+end
+
+local function makeSlider(title, minValue, maxValue, initial, callback)
+    makeLabel(title .. ": " .. initial)
+
+    local slider = Instance.new("TextButton")
+    slider.Size = UDim2.new(1, -8, 0, 34)
+    slider.BackgroundColor3 = Color3.fromRGB(38, 35, 70)
+    slider.TextColor3 = Color3.new(1, 1, 1)
+    slider.Font = Enum.Font.Gotham
+    slider.TextSize = 13
+    slider.Text = "Bam de giam / bam de tang"
+    slider.Parent = body
+    Instance.new("UICorner", slider).CornerRadius = UDim.new(0, 7)
+
+    local value = initial
+    slider.MouseButton1Click:Connect(function()
+        if value >= maxValue then
+            value = minValue
+        else
+            value = math.min(value + 5, maxValue)
+        end
+        slider.Text = title .. ": " .. value
+        callback(value)
+    end)
+
+    callback(initial)
+end
+
+local walkSpeed = 16
+local jumpPower = 50
+local espEnabled = false
+local highlights = {}
+
+local function applyMovement()
+    local character = player.Character
+    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        humanoid.WalkSpeed = walkSpeed
+        humanoid.UseJumpPower = true
+        humanoid.JumpPower = jumpPower
+    end
+end
+
+player.CharacterAdded:Connect(function()
+    task.wait(0.5)
+    applyMovement()
+end)
+
+local function clearESP()
+    for target, highlight in pairs(highlights) do
+        if highlight then highlight:Destroy() end
+        highlights[target] = nil
+    end
+end
+
+local function updateESP()
+    clearESP()
+    if not espEnabled then return end
+
+    for _, target in ipairs(Players:GetPlayers()) do
+        if target ~= player and target.Character then
+            local highlight = Instance.new("Highlight")
+            highlight.Name = "NeonHubTestESP"
+            highlight.FillColor = Color3.fromRGB(130, 70, 255)
+            highlight.OutlineColor = Color3.fromRGB(0, 255, 190)
+            highlight.FillTransparency = 0.65
+            highlight.Adornee = target.Character
+            highlight.Parent = gui
+            highlights[target] = highlight
+        end
+    end
+end
+
+makeLabel("MOVEMENT")
+makeSlider("Walk Speed", 16, 100, 16, function(value)
+    walkSpeed = value
+    applyMovement()
+end)
+
+makeSlider("Jump Power", 50, 150, 50, function(value)
+    jumpPower = value
+    applyMovement()
+end)
+
+makeLabel("VISUALS")
+makeButton("ESP: OFF", function(button)
+    -- handled below
+end).Visible = false
+
+local espButton
+espButton = makeButton("ESP: OFF", function()
+    espEnabled = not espEnabled
+    espButton.Text = espEnabled and "ESP: ON" or "ESP: OFF"
+    updateESP()
+end)
+
+Players.PlayerAdded:Connect(function()
+    task.wait(1)
+    updateESP()
+end)
+
+Players.PlayerRemoving:Connect(function(target)
+    if highlights[target] then
+        highlights[target]:Destroy()
+        highlights[target] = nil
+    end
+end)
+
+makeLabel("AIM TRAINING")
+makeButton("Aim Training: thong tin", function()
+    print("Hay tao bia tap ngắm trong game Roblox Studio cua ban.")
+end)
+
+makeLabel("MENU")
+makeButton("An / hien menu (RightShift)", function()
+    window.Visible = not window.Visible
+end)
+
+UIS.InputBegan:Connect(function(input, processed)
+    if not processed and input.KeyCode == Enum.KeyCode.RightShift then
+        window.Visible = not window.Visible
+    end
+end)
+
+print("Neon Hub da khoi tao.")
