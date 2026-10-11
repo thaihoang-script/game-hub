@@ -1,0 +1,357 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+local DEFAULT_SPEED = 16
+local DEFAULT_JUMP_POWER = 50
+local MIN_SPEED, MAX_SPEED = 16, 100
+local MIN_JUMP, MAX_JUMP = 50, 150
+
+local speedValue = 30
+local jumpValue = 80
+local speedEnabled = false
+local jumpEnabled = false
+local minimized = false
+
+local oldGui = playerGui:FindFirstChild("NeonMovementMenu")
+if oldGui then
+    oldGui:Destroy()
+end
+
+local C = {
+    bg = Color3.fromRGB(9, 13, 19),
+    panel = Color3.fromRGB(17, 24, 33),
+    panel2 = Color3.fromRGB(25, 35, 46),
+    neon = Color3.fromRGB(0, 255, 170),
+    neonDim = Color3.fromRGB(0, 105, 76),
+    text = Color3.fromRGB(240, 248, 255),
+    muted = Color3.fromRGB(145, 162, 180),
+    off = Color3.fromRGB(55, 67, 80),
+    red = Color3.fromRGB(255, 80, 100),
+}
+
+local function make(className, props, parent)
+    local obj = Instance.new(className)
+    for key, value in pairs(props) do
+        obj[key] = value
+    end
+    obj.Parent = parent
+    return obj
+end
+
+local function round(parent, radius)
+    make("UICorner", { CornerRadius = UDim.new(0, radius) }, parent)
+end
+
+local gui = make("ScreenGui", {
+    Name = "NeonMovementMenu",
+    ResetOnSpawn = false,
+    DisplayOrder = 50,
+}, playerGui)
+
+local main = make("Frame", {
+    Name = "Main",
+    Size = UDim2.fromOffset(350, 405),
+    Position = UDim2.new(0, 28, 0.5, -202),
+    BackgroundColor3 = C.bg,
+    BorderSizePixel = 0,
+}, gui)
+round(main, 14)
+make("UIStroke", { Color = C.neon, Thickness = 1.5, Transparency = 0.12 }, main)
+
+local header = make("Frame", {
+    Name = "Header",
+    Size = UDim2.new(1, 0, 0, 56),
+    BackgroundColor3 = C.panel,
+    BorderSizePixel = 0,
+}, main)
+round(header, 14)
+
+make("TextLabel", {
+    Name = "Title",
+    Position = UDim2.fromOffset(16, 0),
+    Size = UDim2.new(1, -120, 1, 0),
+    BackgroundTransparency = 1,
+    Text = "NEON  /  MOVEMENT",
+    TextColor3 = C.neon,
+    TextSize = 17,
+    Font = Enum.Font.GothamBold,
+    TextXAlignment = Enum.TextXAlignment.Left,
+}, header)
+
+local minimizeButton = make("TextButton", {
+    Size = UDim2.fromOffset(32, 30),
+    Position = UDim2.new(1, -76, 0, 13),
+    BackgroundColor3 = C.panel2,
+    Text = "_",
+    TextColor3 = C.neon,
+    TextSize = 22,
+    Font = Enum.Font.GothamBold,
+}, header)
+round(minimizeButton, 7)
+
+local closeButton = make("TextButton", {
+    Size = UDim2.fromOffset(30, 30),
+    Position = UDim2.new(1, -38, 0, 13),
+    BackgroundColor3 = C.panel2,
+    Text = "×",
+    TextColor3 = C.red,
+    TextSize = 22,
+    Font = Enum.Font.GothamBold,
+}, header)
+round(closeButton, 7)
+
+local content = make("Frame", {
+    Name = "Content",
+    Position = UDim2.fromOffset(15, 68),
+    Size = UDim2.new(1, -30, 1, -80),
+    BackgroundTransparency = 1,
+}, main)
+
+local function label(parent, text, pos, size, color, textSize, font)
+    return make("TextLabel", {
+        Position = pos,
+        Size = size,
+        BackgroundTransparency = 1,
+        Text = text,
+        TextColor3 = color or C.text,
+        TextSize = textSize or 14,
+        Font = font or Enum.Font.GothamMedium,
+        TextXAlignment = Enum.TextXAlignment.Left,
+    }, parent)
+end
+
+local function button(parent, text, pos, size)
+    local b = make("TextButton", {
+        Position = pos,
+        Size = size,
+        BackgroundColor3 = C.off,
+        Text = text,
+        TextColor3 = C.text,
+        TextSize = 12,
+        Font = Enum.Font.GothamBold,
+        AutoButtonColor = true,
+    }, parent)
+    round(b, 8)
+    return b
+end
+
+local function slider(parent, titleText, y, minVal, maxVal, initial)
+    local section = make("Frame", {
+        Position = UDim2.fromOffset(0, y),
+        Size = UDim2.new(1, 0, 0, 88),
+        BackgroundTransparency = 1,
+    }, parent)
+
+    label(section, titleText, UDim2.fromOffset(0, 0),
+        UDim2.new(1, -70, 0, 22), C.text, 13, Enum.Font.GothamBold)
+
+    local valueLabel = label(section, tostring(initial),
+        UDim2.new(1, -60, 0, 0), UDim2.fromOffset(60, 22),
+        C.neon, 13, Enum.Font.GothamBold)
+    valueLabel.TextXAlignment = Enum.TextXAlignment.Right
+
+    local track = make("Frame", {
+        Position = UDim2.fromOffset(0, 34),
+        Size = UDim2.new(1, 0, 0, 8),
+        BackgroundColor3 = C.panel2,
+        BorderSizePixel = 0,
+    }, section)
+    round(track, 5)
+
+    local initialAlpha = (initial - minVal) / (maxVal - minVal)
+    local fill = make("Frame", {
+        Size = UDim2.new(initialAlpha, 0, 1, 0),
+        BackgroundColor3 = C.neon,
+        BorderSizePixel = 0,
+    }, track)
+    round(fill, 5)
+
+    local knob = make("TextButton", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.new(initialAlpha, 0, 0.5, 0),
+        Size = UDim2.fromOffset(18, 18),
+        BackgroundColor3 = C.text,
+        Text = "",
+        AutoButtonColor = false,
+    }, track)
+    round(knob, 9)
+    make("UIStroke", { Color = C.neon, Thickness = 2 }, knob)
+
+    label(section, tostring(minVal), UDim2.fromOffset(0, 49),
+        UDim2.fromOffset(50, 18), C.muted, 11)
+    local maxLabel = label(section, tostring(maxVal),
+        UDim2.new(1, -50, 0, 49), UDim2.fromOffset(50, 18), C.muted, 11)
+    maxLabel.TextXAlignment = Enum.TextXAlignment.Right
+
+    local value = initial
+    local onChanged = function() end
+    local dragging = false
+
+    local function setValue(newValue)
+        value = math.clamp(math.floor(newValue + 0.5), minVal, maxVal)
+        local alpha = (value - minVal) / (maxVal - minVal)
+        fill.Size = UDim2.new(alpha, 0, 1, 0)
+        knob.Position = UDim2.new(alpha, 0, 0.5, 0)
+        valueLabel.Text = tostring(value)
+        onChanged(value)
+    end
+
+    local function setFromX(x)
+        local width = track.AbsoluteSize.X
+        if width <= 0 then return end
+        local alpha = math.clamp((x - track.AbsolutePosition.X) / width, 0, 1)
+        setValue(minVal + alpha * (maxVal - minVal))
+    end
+
+    local function beginDrag(input)
+        dragging = true
+        setFromX(input.Position.X)
+    end
+
+    knob.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+            or input.UserInputType == Enum.UserInputType.Touch then
+            beginDrag(input)
+        end
+    end)
+
+    track.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+            or input.UserInputType == Enum.UserInputType.Touch then
+            beginDrag(input)
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement
+            or input.UserInputType == Enum.UserInputType.Touch) then
+            setFromX(input.Position.X)
+        end
+    end)
+
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+            or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+
+    return {
+        Set = setValue,
+        Get = function() return value end,
+        OnChanged = function(fn)
+            onChanged = fn
+            onChanged(value)
+        end,
+    }
+end
+
+local speedToggle = button(content, "SPEED: OFF",
+    UDim2.fromOffset(0, 0), UDim2.new(0.5, -5, 0, 36))
+local jumpToggle = button(content, "HIGH JUMP: OFF",
+    UDim2.new(0.5, 5, 0, 0), UDim2.new(0.5, -5, 0, 36))
+
+local speedSlider = slider(content, "WALK SPEED", 51, MIN_SPEED, MAX_SPEED, speedValue)
+local jumpSlider = slider(content, "JUMP POWER", 145, MIN_JUMP, MAX_JUMP, jumpValue)
+
+local status = label(content, "STATUS  /  READY",
+    UDim2.fromOffset(0, 238), UDim2.new(1, 0, 0, 24), C.neon, 11, Enum.Font.GothamBold)
+
+local resetButton = button(content, "RESET DEFAULT",
+    UDim2.fromOffset(0, 271), UDim2.new(1, 0, 0, 34))
+
+label(content, "RIGHT SHIFT  /  SHOW-HIDE",
+    UDim2.fromOffset(0, 312), UDim2.new(1, 0, 0, 18), C.muted, 10)
+
+local function getHumanoid()
+    local character = player.Character
+    if not character then return nil end
+    return character:FindFirstChildOfClass("Humanoid")
+end
+
+local function applySettings()
+    local humanoid = getHumanoid()
+    if not humanoid then
+        status.Text = "STATUS  /  WAITING FOR CHARACTER"
+        return
+    end
+
+    humanoid.WalkSpeed = speedEnabled and speedValue or DEFAULT_SPEED
+    humanoid.UseJumpPower = true
+    humanoid.JumpPower = jumpEnabled and jumpValue or DEFAULT_JUMP_POWER
+
+    status.Text = "STATUS  /  " ..
+        (speedEnabled and "SPEED ON" or "SPEED OFF") .. "  |  " ..
+        (jumpEnabled and "JUMP ON" or "JUMP OFF")
+end
+
+local function refreshButtons()
+    speedToggle.Text = speedEnabled and "SPEED: ON" or "SPEED: OFF"
+    speedToggle.BackgroundColor3 = speedEnabled and C.neonDim or C.off
+    speedToggle.TextColor3 = speedEnabled and C.neon or C.text
+
+    jumpToggle.Text = jumpEnabled and "HIGH JUMP: ON" or "HIGH JUMP: OFF"
+    jumpToggle.BackgroundColor3 = jumpEnabled and C.neonDim or C.off
+    jumpToggle.TextColor3 = jumpEnabled and C.neon or C.text
+
+    applySettings()
+end
+
+speedSlider.OnChanged(function(value)
+    speedValue = value
+    if speedEnabled then applySettings() end
+end)
+
+jumpSlider.OnChanged(function(value)
+    jumpValue = value
+    if jumpEnabled then applySettings() end
+end)
+
+speedToggle.Activated:Connect(function()
+    speedEnabled = not speedEnabled
+    refreshButtons()
+end)
+
+jumpToggle.Activated:Connect(function()
+    jumpEnabled = not jumpEnabled
+    refreshButtons()
+end)
+
+resetButton.Activated:Connect(function()
+    speedValue = 30
+    jumpValue = 80
+    speedSlider.Set(speedValue)
+    jumpSlider.Set(jumpValue)
+    speedEnabled = false
+    jumpEnabled = false
+    refreshButtons()
+end)
+
+minimizeButton.Activated:Connect(function()
+    minimized = not minimized
+    content.Visible = not minimized
+    main.Size = minimized and UDim2.fromOffset(350, 56) or UDim2.fromOffset(350, 405)
+    minimizeButton.Text = minimized and "+" or "_"
+end)
+
+closeButton.Activated:Connect(function()
+    gui.Enabled = false
+end)
+
+UserInputService.InputBegan:Connect(function(input, processed)
+    if processed then return end
+    if input.KeyCode == Enum.KeyCode.RightShift then
+        gui.Enabled = not gui.Enabled
+    end
+end)
+
+player.CharacterAdded:Connect(function(character)
+    character:WaitForChild("Humanoid")
+    task.wait(0.15)
+    applySettings()
+end)
+
+refreshButtons()
